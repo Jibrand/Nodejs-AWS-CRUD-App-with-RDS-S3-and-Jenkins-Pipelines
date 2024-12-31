@@ -1,0 +1,11 @@
+NAWS/
+├── index.js
+├── config/
+│   └── db.js
+├── controllers/
+│   └── userController.js
+├── models/
+│   └── userModel.js
+├── routes/
+│   └── userRoutes.js
+└── .env

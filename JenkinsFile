@@ -1,0 +1,67 @@
+pipeline {
+    agent any
+    environment {
+        AWS_ACCESS_KEY = credentials('aws-access-key')   
+        AWS_SECRET_KEY = credentials('aws-secret-key')   
+        DB_HOST = credentials('db-host')  
+        DB_USER = credentials('db-username')   
+        DB_PASSWORD = credentials('db-password')   
+        DB_NAME = credentials('db-name')   
+        AWS_BUCKET_NAME = credentials('s3-bucket-name')   
+        PORT = '5000'  
+        EC2_IP = credentials('ec2-ip')   
+    }
+
+    stages {
+        stage('Install Dependencies on EC2') {
+            steps {
+                sshagent(['ec2-ssh']) {
+                    sh '''
+                        ssh ec2-user@${EC2_IP} <<EOF
+                            cd /home/ec2-user/devops-project
+                            npm install
+                        EOF
+                    '''
+                }
+            }
+        }
+    
+        stage('Build Docker Image on EC2') {
+            steps {
+                sshagent(['ec2-ssh']) {
+                    sh '''
+                        ssh ec2-user@${EC2_IP} <<EOF
+                            cd /home/ec2-user/devops-project
+                            docker build -t devops-project .
+                        EOF
+                    '''
+                }
+            }
+        }
+        stage('Push Docker Image to ECR') {
+            steps {
+                withAWS(credentials: 'aws-credentials') {
+                    sh '''
+                        ssh ec2-user@${EC2_IP} <<EOF
+                            aws ecr get-login-password --region eu-north-1 | docker login --username AWS --password-stdin <MY_ECR_URL>
+                            docker tag devops-project <MY_ECR_URL>/devops-project:latest
+                            docker push <MY_ECR_URL>/devops-project:latest
+                        EOF
+                    '''
+                }
+            }
+        }
+        stage('Deploy on EC2') {
+            steps {
+                sshagent(['ec2-ssh']) {
+                    sh '''
+                        ssh ec2-user@${EC2_IP} <<EOF
+                            docker pull <MY_ECR_URL>/devops-project:latest
+                            docker run -d -p ${PORT}:${PORT} devops-project
+                        EOF
+                    '''
+                }
+            }
+        }
+    }
+}
