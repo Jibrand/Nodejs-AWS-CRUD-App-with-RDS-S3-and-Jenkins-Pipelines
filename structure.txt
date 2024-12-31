@@ -1,4 +1,4 @@
-NAWS/
+Nodejs-AWS-CRUD-App-with-RDS-S3-and-Jenkins-Pipelines/
 ├── index.js
 ├── config/
 │   └── db.js
